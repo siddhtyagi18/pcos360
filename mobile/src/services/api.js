@@ -5,6 +5,10 @@ import Constants from 'expo-constants';
 
 const AUTH_TOKEN_KEY = '@pcos360_auth_token_v1';
 
+// Permanent Production Backend URL (Render Cloud Service)
+export const PRODUCTION_API_URL = 'https://pcos360-backend.onrender.com';
+export const LOCAL_DEV_FALLBACK_URL = 'http://10.0.2.2:8000';
+
 export const normalizeApiBaseUrl = (rawUrl) => {
   const trimmed = (rawUrl || '').trim().replace(/\/+$/, '');
   if (!trimmed) return '';
@@ -17,27 +21,43 @@ export const normalizeApiBaseUrl = (rawUrl) => {
 
 export const isLocalOrDevUrl = (url) => {
   if (!url) return false;
-  return /localhost|127\.0\.0\.1|10\.0\.2\.2|192\.168\.\d+\.\d+|:8000|:8081/i.test(url);
+  const cleaned = String(url).trim().toLowerCase();
+  return (
+    cleaned.includes('localhost') ||
+    cleaned.includes('127.0.0.1') ||
+    cleaned.includes('10.0.2.2') ||
+    /192\.168\.\d+\.\d+/.test(cleaned) ||
+    /172\.(1[6-9]|2\d|3[01])\.\d+\.\d+/.test(cleaned) ||
+    /10\.\d+\.\d+\.\d+/.test(cleaned) ||
+    /:8000(\/|$)/.test(cleaned) ||
+    /:8081(\/|$)/.test(cleaned)
+  );
 };
 
 // Auto-resolve backend host:
-// 1. Build-time EXPO_PUBLIC_API_URL (Render HTTPS production origin)
-// 2. Production build (!__DEV__): never falls back to local laptop IPs
-// 3. Local Development fallbacks: Metro dev server host (`adb reverse` -> localhost) or Wi-Fi Expo Go
-const resolveDefaultHost = () => {
+// 1. Production build (!__DEV__): ALWAYS defaults to PRODUCTION_API_URL (Render).
+//    Only accepts EXPO_PUBLIC_API_URL if it is an explicitly configured non-local HTTPS URL.
+// 2. Development build (__DEV__ === true):
+//    Supports local FastAPI testing via EXPO_PUBLIC_API_URL, Metro host, or emulator IP.
+export const resolveDefaultHost = () => {
+  const isDev = typeof __DEV__ !== 'undefined' ? Boolean(__DEV__) : false;
   const configuredPublicUrl = normalizeApiBaseUrl(process.env.EXPO_PUBLIC_API_URL);
-  if (configuredPublicUrl && /^https:\/\//i.test(configuredPublicUrl)) {
+
+  // Production APK builds: never use local laptop or LAN IPs
+  if (!isDev) {
+    if (configuredPublicUrl && /^https:\/\//i.test(configuredPublicUrl) && !isLocalOrDevUrl(configuredPublicUrl)) {
+      return configuredPublicUrl;
+    }
+    return PRODUCTION_API_URL;
+  }
+
+  // Development builds:
+  if (configuredPublicUrl) {
     return configuredPublicUrl;
   }
 
-  const isProduction = typeof __DEV__ !== 'undefined' && !__DEV__;
-  if (isProduction) {
-    if (configuredPublicUrl) return configuredPublicUrl;
-    return 'https://pcos360-backend.onrender.com';
-  }
-
   if (Platform.OS !== 'android') {
-    return configuredPublicUrl || 'http://localhost:8000';
+    return 'http://localhost:8000';
   }
 
   const scriptURL =
@@ -60,11 +80,7 @@ const resolveDefaultHost = () => {
     }
   }
 
-  if (configuredPublicUrl) {
-    return configuredPublicUrl;
-  }
-
-  return Constants.isDevice ? 'http://localhost:8000' : 'http://10.0.2.2:8000';
+  return Constants.isDevice ? 'http://localhost:8000' : LOCAL_DEV_FALLBACK_URL;
 };
 
 const DEFAULT_HOST = resolveDefaultHost();
@@ -195,7 +211,19 @@ async function request(endpoint, options = {}) {
   } catch (err) {
     clearTimeout(timeoutId);
     if (err.status) throw err;
-    const networkError = new Error(`Offline or cannot reach backend at ${currentBaseUrl}`);
+    if (err.name === 'AbortError') {
+      const isCloud = !isLocalOrDevUrl(currentBaseUrl);
+      const timeoutMsg = isCloud
+        ? `Request to PCOS360 Cloud Service timed out. If the server was sleeping, it may be waking up. Please retry.`
+        : `Connection to local backend at ${currentBaseUrl} timed out after ${timeoutMs}ms.`;
+      const timeoutErr = new Error(timeoutMsg);
+      timeoutErr.isNetworkError = true;
+      timeoutErr.isTimeout = true;
+      throw timeoutErr;
+    }
+    const networkError = new Error(
+      `Cannot reach PCOS360 backend at ${currentBaseUrl}. Please verify your internet connection.`
+    );
     networkError.isNetworkError = true;
     throw networkError;
   }

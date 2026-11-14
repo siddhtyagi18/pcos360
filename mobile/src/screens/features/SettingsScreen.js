@@ -164,7 +164,7 @@ export default function SettingsScreen({ navigation }) {
               onChangeText={setInputUrl}
               autoCapitalize="none"
               autoCorrect={false}
-              placeholder="http://10.0.2.2:8000"
+              placeholder={defaultApiUrl || 'https://pcos360-backend.onrender.com'}
             />
             <Text style={styles.helperText}>
               {isLocalOrDevUrl(defaultApiUrl) ? (

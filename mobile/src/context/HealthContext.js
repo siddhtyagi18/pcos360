@@ -17,6 +17,7 @@ import {
   getDefaultApiBaseUrl,
   setApiBaseUrl,
   isLocalOrDevUrl,
+  PRODUCTION_API_URL,
   loadAuthToken,
   clearAuthToken,
   setUnauthorizedHandler,
@@ -446,17 +447,38 @@ export function HealthProvider({ children }) {
     async function initMobileSession() {
       try {
         const savedUrl = await AsyncStorage.getItem(API_URL_STORAGE_KEY);
-        const defaultUrl = getDefaultApiBaseUrl();
-        // If savedUrl is a legacy local development IP (192.168.*, localhost, 10.0.2.2) and the build has a cloud HTTPS URL,
-        // automatically clear the obsolete local override and adopt the cloud URL.
-        if (savedUrl && isLocalOrDevUrl(savedUrl) && /^https:\/\//i.test(defaultUrl)) {
-          await AsyncStorage.removeItem(API_URL_STORAGE_KEY);
-          const appliedUrl = setApiBaseUrl(defaultUrl);
-          if (active) setApiServerUrlState(appliedUrl);
-        } else if (savedUrl) {
-          const appliedUrl = setApiBaseUrl(savedUrl);
-          if (active) setApiServerUrlState(appliedUrl);
+        const defaultUrl = getDefaultApiBaseUrl() || PRODUCTION_API_URL;
+        const isDev = typeof __DEV__ !== 'undefined' ? Boolean(__DEV__) : false;
+
+        let activeUrl = defaultUrl;
+
+        if (savedUrl) {
+          const isLegacyDev = isLocalOrDevUrl(savedUrl) || /192\.168\./.test(savedUrl);
+
+          if (!isDev && isLegacyDev) {
+            // AUTOMATIC MIGRATION:
+            // An existing installation has a persisted local development IP (e.g. 192.168.94.186:8000 or localhost).
+            // In production builds, purge the obsolete development override so the app connects to Render.
+            await AsyncStorage.removeItem(API_URL_STORAGE_KEY).catch(() => {});
+            activeUrl = defaultUrl;
+          } else if (!isLegacyDev && /^https:\/\//i.test(savedUrl)) {
+            // Valid custom HTTPS URL explicitly configured by the user
+            activeUrl = savedUrl;
+          } else if (isDev) {
+            // In local development, allow preserving saved local dev URL
+            activeUrl = savedUrl;
+          } else {
+            // Fallback to production default
+            await AsyncStorage.removeItem(API_URL_STORAGE_KEY).catch(() => {});
+            activeUrl = defaultUrl;
+          }
+        } else {
+          // Fresh install: ensure default URL is applied
+          activeUrl = defaultUrl;
         }
+
+        const appliedUrl = setApiBaseUrl(activeUrl);
+        if (active) setApiServerUrlState(appliedUrl);
       } catch {
         // ignore
       }
@@ -858,15 +880,19 @@ export function HealthProvider({ children }) {
     }
   };
 
-  // Change backend URL (for physical device on Wi-Fi LAN, USB adb reverse, or Android emulator)
+  // Change backend URL (with automatic cleanup when resetting to default)
   const updateApiUrl = async (newUrl) => {
-    const appliedUrl = setApiBaseUrl(newUrl);
-    setApiServerUrlState(appliedUrl);
-    if ((newUrl || '').trim()) {
-      await AsyncStorage.setItem(API_URL_STORAGE_KEY, appliedUrl);
-    } else {
-      await AsyncStorage.removeItem(API_URL_STORAGE_KEY);
+    const defaultUrl = getDefaultApiBaseUrl() || PRODUCTION_API_URL;
+    const trimmed = (newUrl || '').trim();
+    if (!trimmed || trimmed === defaultUrl) {
+      await AsyncStorage.removeItem(API_URL_STORAGE_KEY).catch(() => {});
+      const appliedUrl = setApiBaseUrl(defaultUrl);
+      setApiServerUrlState(appliedUrl);
+      return await checkBackendStatus();
     }
+    const appliedUrl = setApiBaseUrl(trimmed);
+    setApiServerUrlState(appliedUrl);
+    await AsyncStorage.setItem(API_URL_STORAGE_KEY, appliedUrl).catch(() => {});
     return await checkBackendStatus();
   };
 
