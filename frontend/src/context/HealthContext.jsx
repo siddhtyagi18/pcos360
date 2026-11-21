@@ -449,6 +449,13 @@ export function HealthProvider({ children }) {
           apiClient.getClinicalRecords(),
         ]);
 
+      let pcoscopeAnalysis = null;
+      try {
+        pcoscopeAnalysis = await apiClient.getPcoscopeAnalysis(30);
+      } catch (pcosErr) {
+        console.warn('PCOSCOPE analysis fetch notice (non-fatal):', pcosErr);
+      }
+
       setDbConnected(true);
 
       const mappedProfile = backendProfile
@@ -478,7 +485,29 @@ export function HealthProvider({ children }) {
         backendLifestyle,
         mappedLabs
       );
-      const mappedGaps = buildCareGapsForUser(mappedProfile, mappedLabs, backendSymptoms);
+      const mappedGaps = (pcoscopeAnalysis?.care_gaps || []).length > 0
+        ? pcoscopeAnalysis.care_gaps.map((g, idx) => ({
+            id: `gap-${idx}`,
+            title: g.title,
+            description: g.description,
+            severity: g.priority,
+            dueText: g.guideline_source,
+          }))
+        : buildCareGapsForUser(mappedProfile, mappedLabs, backendSymptoms);
+
+      const mappedCorrelations = (pcoscopeAnalysis?.lifestyle_correlations || []).map((c) => ({
+        factorA: c.factor_a,
+        factorB: c.factor_b,
+        sampleSize: c.sample_size,
+        hasSufficientData: c.has_sufficient_data,
+        r: c.correlation_coefficient,
+        direction: c.direction,
+        strength: c.strength || 'Insufficient Data',
+        status: c.data_quality_status,
+        warning: c.significance_warning,
+        description: c.interpretation,
+        recommendation: c.caveat,
+      }));
 
       const mappedTrends = (backendSymptoms || [])
         .slice(0, 12)
@@ -502,7 +531,7 @@ export function HealthProvider({ children }) {
       setCareGaps(mappedGaps);
       setSymptomTrends(mappedTrends);
       setInsights([]);
-      setCorrelations([]);
+      setCorrelations(mappedCorrelations);
       setHistoricalMetabolic([]);
       setNotifications(createDefaultNotifications());
 

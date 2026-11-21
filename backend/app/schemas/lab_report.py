@@ -1,5 +1,6 @@
 import math
 from datetime import date, datetime
+from typing import Optional
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
@@ -34,6 +35,6 @@ class LabReportCreate(LabReportBase):
 class LabReportResponse(LabReportBase):
     id: int
     user_id: int
-    created_at: datetime
+    created_at: Optional[datetime] = None
 
     model_config = ConfigDict(from_attributes=True)

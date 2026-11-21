@@ -43,14 +43,22 @@ def _encode_authority_special_chars(url: str) -> str:
 
 
 def normalize_database_url(raw_url: str) -> str:
-    """Normalize PostgreSQL scheme aliases to psycopg v3, encode '@' in passwords, and ensure Supabase SSL."""
+    """Normalize PostgreSQL scheme aliases to installed psycopg driver, encode '@' in passwords, and ensure Supabase SSL."""
     cleaned = (raw_url or "").strip()
-    for legacy_prefix in ("postgresql+psycopg2://", "postgres://", "postgresql://"):
+
+    # Detect available driver (prefer psycopg v3 if installed, fall back to psycopg2)
+    try:
+        import psycopg  # noqa: F401
+        preferred_prefix = "postgresql+psycopg://"
+    except ImportError:
+        preferred_prefix = "postgresql+psycopg2://"
+
+    for legacy_prefix in ("postgresql+psycopg2://", "postgresql+psycopg://", "postgres://", "postgresql://"):
         if cleaned.startswith(legacy_prefix):
-            cleaned = cleaned.replace(legacy_prefix, "postgresql+psycopg://", 1)
+            cleaned = cleaned.replace(legacy_prefix, preferred_prefix, 1)
             break
 
-    if not cleaned.startswith("postgresql+psycopg://"):
+    if not (cleaned.startswith("postgresql+psycopg://") or cleaned.startswith("postgresql+psycopg2://")):
         return cleaned
 
     cleaned = _encode_authority_special_chars(cleaned)

@@ -34,6 +34,14 @@ class Settings(BaseSettings):
     # PostgreSQL Database URL
     DATABASE_URL: str = "postgresql+psycopg://postgres:postgres@localhost:5432/pcos360_db"
 
+    # AI Provider Configuration (Google Gemini Primary, Groq Secondary)
+    GEMINI_API_KEY: str = ""
+    GEMINI_MODEL: str = "gemini-flash-lite-latest"
+    GROQ_API_KEY: str = ""
+    GROQ_MODEL: str = "llama-3.3-70b-versatile"
+    AI_REQUEST_TIMEOUT_SECONDS: float = 25.0
+    AI_MAX_RETRIES: int = 2
+
     # CORS origins: allowed to connect from the React + Vite frontend and Expo web/dev tools
     BACKEND_CORS_ORIGINS: List[str] = [
         "http://localhost:5173",

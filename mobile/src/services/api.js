@@ -400,6 +400,50 @@ export const apiClient = {
       body: JSON.stringify(recordData),
     });
   },
+
+  // PCOSCOPE Pattern Discovery (Phase 4)
+  async getPcoscopeAnalysis(windowDays = 30) {
+    return await request(`/api/pcoscope/analysis?window_days=${encodeURIComponent(windowDays)}`);
+  },
+
+  async getPcoscopeInsights(windowDays = 30) {
+    return await request(`/api/pcoscope/insights?window_days=${encodeURIComponent(windowDays)}`);
+  },
+
+  // AI Health Intelligence (Phase 3)
+  async chatAI(payload) {
+    return await request('/api/ai/chat', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  async getAIInsights(payload = {}) {
+    return await request('/api/ai/insights', {
+      method: 'POST',
+      body: JSON.stringify({
+        timeframe_days: payload.timeframe_days || 30,
+        include_correlations: payload.include_correlations ?? true,
+        include_rotterdam_summary: payload.include_rotterdam_summary ?? true,
+      }),
+    });
+  },
+
+  async runAICopilot(payload) {
+    return await request('/api/ai/copilot', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  // Health Context Engine (Phase 2)
+  async getHealthContext() {
+    return await request('/api/health-context/me');
+  },
+
+  async getHealthContextSummary() {
+    return await request('/api/health-context/me/summary');
+  },
 };
 
 export default apiClient;

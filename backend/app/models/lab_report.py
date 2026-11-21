@@ -15,7 +15,7 @@ class LabReport(Base):
     unit = Column(String(50), nullable=False)
     reference_range = Column(String(100), nullable=False)
     report_date = Column(Date, nullable=False)
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    created_at = Column(DateTime(timezone=True), default=func.now(), server_default=func.now(), nullable=False)
 
     user = relationship("User", back_populates="lab_reports")
 

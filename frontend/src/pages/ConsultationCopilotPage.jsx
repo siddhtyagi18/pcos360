@@ -14,6 +14,7 @@ import {
   ArrowRight
 } from 'lucide-react';
 import { useHealth } from '../context/HealthContext';
+import { apiClient } from '../services/api';
 import { Badge } from '../components/common/Badge';
 import EthicalDisclaimer from '../components/common/EthicalDisclaimer';
 
@@ -33,6 +34,21 @@ export default function ConsultationCopilotPage() {
     'Is any follow-up imaging or laboratory monitoring needed before my next appointment?'
   ]);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [isGeneratingQuestions, setIsGeneratingQuestions] = useState(false);
+
+  const handleGenerateAIQuestions = async () => {
+    setIsGeneratingQuestions(true);
+    try {
+      const res = await apiClient.getPcoscopeInsights(30);
+      if (res?.doctor_discussion_points && res.doctor_discussion_points.length > 0) {
+        setQuestions(res.doctor_discussion_points);
+      }
+    } catch (err) {
+      console.warn('Could not generate AI questions:', err);
+    } finally {
+      setIsGeneratingQuestions(false);
+    }
+  };
 
   const handleAddQuestion = (e) => {
     e.preventDefault();
@@ -140,21 +156,32 @@ export default function ConsultationCopilotPage() {
               <p className="text-xs text-[#77717F]">Calibrated to your latest lab numbers and logged symptoms</p>
             </div>
 
-            {/* Doctor Type Pills */}
-            <div className="flex items-center gap-1 bg-[#FAF9FC] p-1 rounded-xl border border-[#EFEAF4]">
-              {['Gynecologist', 'Endocrinologist', 'Nutritionist'].map((doc) => (
-                <button
-                  key={doc}
-                  onClick={() => setDoctorType(doc)}
-                  className={`px-3 py-1 text-xs font-semibold rounded-lg transition-all ${
-                    doctorType === doc
-                      ? 'bg-white text-[#7950A8] shadow-2xs'
-                      : 'text-[#77717F] hover:text-[#292431]'
-                  }`}
-                >
-                  {doc}
-                </button>
-              ))}
+            {/* Doctor Type Pills & AI Button */}
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                onClick={handleGenerateAIQuestions}
+                disabled={isGeneratingQuestions}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-[#EDE5F7] text-[#7950A8] rounded-xl text-xs font-bold hover:bg-[#E3D6F2] transition-all cursor-pointer disabled:opacity-50"
+              >
+                <Sparkles className={`w-3.5 h-3.5 ${isGeneratingQuestions ? 'animate-spin' : ''}`} />
+                <span>{isGeneratingQuestions ? 'Analyzing...' : 'Generate with AI'}</span>
+              </button>
+
+              <div className="flex items-center gap-1 bg-[#FAF9FC] p-1 rounded-xl border border-[#EFEAF4]">
+                {['Gynecologist', 'Endocrinologist', 'Nutritionist'].map((doc) => (
+                  <button
+                    key={doc}
+                    onClick={() => setDoctorType(doc)}
+                    className={`px-3 py-1 text-xs font-semibold rounded-lg transition-all ${
+                      doctorType === doc
+                        ? 'bg-white text-[#7950A8] shadow-2xs'
+                        : 'text-[#77717F] hover:text-[#292431]'
+                    }`}
+                  >
+                    {doc}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 

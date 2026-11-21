@@ -39,6 +39,24 @@ from app.schemas.clinical_record import (
     ClinicalRecordCreate,
     ClinicalRecordResponse,
 )
+from app.schemas.ai import (
+    AIChatMessage,
+    AIChatRequest,
+    AIInsightsRequest,
+    AICopilotRequest,
+    AIResponse,
+)
+from app.schemas.pcoscope import (
+    BiomarkerTrajectoryItem,
+    CareGapItem,
+    CyclePatternMetrics,
+    DataCompletenessSummary,
+    LifestyleCorrelationItem,
+    PcoscopeAnalysisResponse,
+    PcoscopeInsightsResponse,
+    SymptomClusterItem,
+    SymptomTrendsAnalysis,
+)
 
 __all__ = [
     "RootResponse",
@@ -69,4 +87,18 @@ __all__ = [
     "ClinicalRecordBase",
     "ClinicalRecordCreate",
     "ClinicalRecordResponse",
+    "AIChatMessage",
+    "AIChatRequest",
+    "AIInsightsRequest",
+    "AICopilotRequest",
+    "AIResponse",
+    "BiomarkerTrajectoryItem",
+    "CareGapItem",
+    "CyclePatternMetrics",
+    "DataCompletenessSummary",
+    "LifestyleCorrelationItem",
+    "PcoscopeAnalysisResponse",
+    "PcoscopeInsightsResponse",
+    "SymptomClusterItem",
+    "SymptomTrendsAnalysis",
 ]

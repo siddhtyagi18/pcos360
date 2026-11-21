@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -26,6 +26,7 @@ import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
 import Badge from '../../components/common/Badge';
 import { useHealth } from '../../context/HealthContext';
+import apiClient from '../../services/api';
 
 export default function CopilotScreen({ navigation }) {
   const { profile, cycleData, labReports } = useHealth();
@@ -44,6 +45,23 @@ export default function CopilotScreen({ navigation }) {
     'Should we schedule a follow-up pelvic ultrasound to evaluate ovarian follicular count under Rotterdam criteria?',
     'Are there specific cardiovascular lipid monitoring markers recommended for metabolic PCOS?',
   ];
+
+  const [questions, setQuestions] = useState(suggestedQuestions);
+
+  useEffect(() => {
+    let isMounted = true;
+    apiClient
+      .getPcoscopeInsights(30)
+      .then((res) => {
+        if (isMounted && res?.doctor_discussion_points && res.doctor_discussion_points.length > 0) {
+          setQuestions(res.doctor_discussion_points);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const handleDownloadPDF = async () => {
     try {
@@ -97,7 +115,7 @@ export default function CopilotScreen({ navigation }) {
             <div class="card">
               <div class="title">Physician Discussion Points & Questions</div>
               <ul>
-                ${suggestedQuestions.map(q => `<li>${q}</li>`).join('')}
+                ${questions.map(q => `<li>${q}</li>`).join('')}
               </ul>
             </div>
             
@@ -174,7 +192,7 @@ export default function CopilotScreen({ navigation }) {
             <Text style={styles.qTitle}>Evidence-Based Questions to Ask</Text>
           </View>
 
-          {suggestedQuestions.map((q, idx) => (
+          {questions.map((q, idx) => (
             <Card key={idx} style={styles.questionCard}>
               <Text style={styles.questionNum}>Q{idx + 1}</Text>
               <Text style={styles.questionText}>{q}</Text>
